@@ -1,7 +1,9 @@
 package main
 
-import ginlearn "learning2/gin"
+import (
+	"learning2/sql"
+)
 
 func main() {
-	ginlearn.Run()
+	sql.Run()
 }
