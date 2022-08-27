@@ -75,6 +75,79 @@ func InitAuth() {
 			})
 		}
 	})
+	r.GET("/sp_question", func(context *gin.Context) {
+		name := context.PostForm("name")
+		var question string
+		stmt, err := dB.Prepare("select sp_question from login_plus where name = ?")
+		if err != nil {
+			log.Fatal(err)
+		}
+		query, err := stmt.Query(name)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer query.Close()
+		query.Next()
+		err = query.Scan(question)
+		if err != nil {
+			context.JSON(200, map[string]string{
+				"code":    "-1",
+				"message": "不存在的账号",
+			})
+			return
+		}
+		context.JSON(200, map[string]string{
+			"code":    "0",
+			"message": question,
+		})
+	})
+	r.POST("/find-pass", func(context *gin.Context) {
+		name := context.PostForm("name")
+		var theAnswer string
+		var passwordSalt string
+		answer := context.PostForm("answer")
+		newPassword := context.PostForm("new_password")
+		stmt, err := dB.Prepare("select sp_answer, password_salt from login_plus where name = ?")
+		if err != nil {
+			log.Fatal(err)
+		}
+		rows, err := stmt.Query(name)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer rows.Close()
+		rows.Next()
+		err = rows.Scan(theAnswer)
+		rows.Next()
+		err = rows.Scan(passwordSalt)
+		if err != nil {
+			context.JSON(200, map[string]string{
+				"code":    "-1",
+				"message": "不存在的账号",
+			})
+			return
+		}
+		if theAnswer != answer {
+			context.JSON(200, map[string]string{
+				"code":    "-2",
+				"message": "回答不正确",
+			})
+			return
+		}
+		newPassMd5 := MD5(newPassword + passwordSalt)
+		stmt, err = dB.Prepare("update login_plus set password = ? where name = ?")
+		if err != nil {
+			log.Fatal(err)
+		}
+		_, err = stmt.Exec(newPassMd5, name)
+		if err != nil {
+			log.Fatal(err)
+		}
+		context.JSON(200, map[string]string{
+			"code":    "0",
+			"message": "修改成功",
+		})
+	})
 }
 
 func GenerateUUIDStr() string {
